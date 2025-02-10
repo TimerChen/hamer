@@ -167,7 +167,7 @@ class PatchEmbed(nn.Module):
 
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=(patch_size[0] // ratio), padding=4 + 2 * (ratio//2-1))
 
-    def forward(self, x, **kwargs):
+    def forward(self, x):
         B, C, H, W = x.shape
         x = self.proj(x)
         Hp, Wp = x.shape[2], x.shape[3]

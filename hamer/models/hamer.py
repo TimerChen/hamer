@@ -11,7 +11,8 @@ from .backbones import create_backbone
 from .heads import build_mano_head
 from .discriminator import Discriminator
 from .losses import Keypoint3DLoss, Keypoint2DLoss, ParameterLoss
-from . import MANO
+from .mano_wrapper import MANO
+# from . import MANO
 
 log = get_pylogger(__name__)
 
@@ -63,6 +64,7 @@ class HAMER(pl.LightningModule):
 
         # Disable automatic optimization since we use adversarial training
         self.automatic_optimization = False
+        self.skip_mano = False
 
     def get_parameters(self):
         all_params = list(self.mano_head.parameters())
@@ -125,18 +127,22 @@ class HAMER(pl.LightningModule):
         pred_mano_params['global_orient'] = pred_mano_params['global_orient'].reshape(batch_size, -1, 3, 3)
         pred_mano_params['hand_pose'] = pred_mano_params['hand_pose'].reshape(batch_size, -1, 3, 3)
         pred_mano_params['betas'] = pred_mano_params['betas'].reshape(batch_size, -1)
-        mano_output = self.mano(**{k: v.float() for k,v in pred_mano_params.items()}, pose2rot=False)
-        pred_keypoints_3d = mano_output.joints
-        pred_vertices = mano_output.vertices
-        output['pred_keypoints_3d'] = pred_keypoints_3d.reshape(batch_size, -1, 3)
-        output['pred_vertices'] = pred_vertices.reshape(batch_size, -1, 3)
-        pred_cam_t = pred_cam_t.reshape(-1, 3)
-        focal_length = focal_length.reshape(-1, 2)
-        pred_keypoints_2d = perspective_projection(pred_keypoints_3d,
-                                                   translation=pred_cam_t,
-                                                   focal_length=focal_length / self.cfg.MODEL.IMAGE_SIZE)
+        if not self.skip_mano:
+            mano_output = self.mano(**{k: v.float() for k,v in pred_mano_params.items()}, pose2rot=False)
+            # return pred_mano_params['hand_pose']
+            pred_keypoints_3d = mano_output.joints
+            pred_vertices = mano_output.vertices
+            output['pred_keypoints_3d'] = pred_keypoints_3d.reshape(batch_size, -1, 3)
+            output['pred_vertices'] = pred_vertices.reshape(batch_size, -1, 3)
+            pred_cam_t = pred_cam_t.reshape(-1, 3)
+            focal_length = focal_length.reshape(-1, 2)
+            pred_keypoints_2d = perspective_projection(pred_keypoints_3d,
+                                                    translation=pred_cam_t,
+                                                    focal_length=focal_length / self.cfg.MODEL.IMAGE_SIZE)
 
-        output['pred_keypoints_2d'] = pred_keypoints_2d.reshape(batch_size, -1, 2)
+            output['pred_keypoints_2d'] = pred_keypoints_2d.reshape(batch_size, -1, 2)
+        output['pred_pose_params'] = pred_mano_params['hand_pose']
+        output['global_orient'] = pred_mano_params['global_orient']
         return output
 
     def compute_loss(self, batch: Dict, output: Dict, train: bool = True) -> torch.Tensor:

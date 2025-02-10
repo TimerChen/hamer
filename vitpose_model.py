@@ -63,7 +63,11 @@ class ViTPoseModel(object):
             det_results: list[np.ndarray],
             box_score_threshold: float = 0.5) -> list[dict[str, np.ndarray]]:
         image = image[:, :, ::-1]  # RGB -> BGR
-        person_results = process_mmdet_results(det_results, 1)
+        if det_results is None:
+            person_results = None
+            box_score_threshold = None
+        else:
+            person_results = process_mmdet_results(det_results, 1)
         out, _ = inference_top_down_pose_model(self.model,
                                                image,
                                                person_results=person_results,

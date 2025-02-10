@@ -1,6 +1,6 @@
-from .mano_wrapper import MANO
+# from .mano_wrapper import MANO
 from .hamer import HAMER
-from .discriminator import Discriminator
+# from .discriminator import Discriminator
 
 from ..utils.download import cache_url
 from ..configs import CACHE_DIR_HAMER
